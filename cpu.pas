@@ -1,6 +1,6 @@
 unit cpu;
 
-{$mode objfpc}{$H+}
+{$mode fpc}{$H+}
 
 interface
 
@@ -42,7 +42,7 @@ uses
 
 function CPUInit: PCPU;
 begin
-  Result := GetMem(SizeOf(TCPU));
+  CPUInit := GetMem(SizeOf(TCPU));
 end;
 
 procedure CPUTick(CPU: PCPU);

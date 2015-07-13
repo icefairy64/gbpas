@@ -1,6 +1,6 @@
 unit instructions;
 
-{$mode objfpc}{$H+}
+{$mode fpc}{$H+}
 {$inline on}
 
 interface
@@ -28,12 +28,12 @@ implementation
 
 function GetLow(Value: Word): Byte; inline;
 begin
-  Result := Value and $00FF;
+  GetLow := Value and $00FF;
 end;
 
 function GetHigh(Value: Word): Byte; inline;
 begin
-  Result := Value and $FF00;
+  GetHigh := Value and $FF00;
 end;
 
 procedure SetLow(Target: PWord; Value: Byte); inline;
@@ -170,12 +170,12 @@ end;
 
 function GetByteArg(CPU: PCPU; Offset: Byte): Byte; inline;
 begin
-  Result := GetByte(CPU^.Memory, CPU^.IP + Offset);
+  GetByteArg := GetByte(CPU^.Memory, CPU^.IP + Offset);
 end;
 
 function GetWordArg(CPU: PCPU; Offset: Byte): Byte; inline;
 begin
-  Result := GetWord(CPU^.Memory, CPU^.IP + Offset);
+  GetWordArg := GetWord(CPU^.Memory, CPU^.IP + Offset);
 end;
 
 // Instructions
@@ -279,6 +279,8 @@ begin
   RRC(@CPU^.A, CPU);
 end;
 
+{ 10 }
+
 // stop 0
 procedure Instr10_STOP0(CPU: PCPU);
 begin
@@ -374,6 +376,8 @@ procedure Instr1F_RRA(CPU: PCPU);
 begin
   RR(@CPU^.A, CPU);
 end;
+
+{ 20 }
 
 // jr nz, r8
 procedure Instr20_JRNZR8(CPU: PCPU);
@@ -484,6 +488,8 @@ begin
   CPU^.HalfCarry := True;
 end;
 
+{ 30 }
+
 // jr nc, r8
 procedure Instr30_JRNCR8(CPU: PCPU);
 begin
@@ -527,7 +533,7 @@ end;
 // ld (hl), d8
 procedure Instr36_LDRHLD8(CPU: PCPU);
 begin
-  SetHigh(PByte(CPU^.Memory + CPU^.HL), GetByteArg(CPU, 1));
+  PByte(CPU^.Memory + CPU^.HL)^ := GetByteArg(CPU, 1);
 end;
 
 // scf
@@ -590,6 +596,398 @@ begin
   CPU^.Carry := not CPU^.Carry;
   CPU^.Negative := False;
   CPU^.HalfCarry := False;
+end;
+
+{ 40 }
+
+// ld b, b
+procedure Instr40_LDBB(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetHigh(CPU^.BC));
+end;
+
+// ld b, c
+procedure Instr41_LDBC(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetLow(CPU^.BC));
+end;
+
+// ld b, d
+procedure Instr42_LDBD(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetHigh(CPU^.DE));
+end;
+
+// ld b, e
+procedure Instr43_LDBE(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetLow(CPU^.DE));
+end;
+
+// ld b, h
+procedure Instr44_LDBH(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetHigh(CPU^.HL));
+end;
+
+// ld b, l
+procedure Instr45_LDBL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetLow(CPU^.HL));
+end;
+
+// ld b, (hl)
+procedure Instr46_LDBRHL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld b, a
+procedure Instr47_LDBA(CPU: PCPU);
+begin
+  SetHigh(@CPU^.BC, CPU^.A);
+end;
+
+// ld c, b
+procedure Instr48_LDCB(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetHigh(CPU^.BC));
+end;
+
+// ld c, c
+procedure Instr49_LDCC(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetLow(CPU^.BC));
+end;
+
+// ld c, d
+procedure Instr4A_LDCD(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetHigh(CPU^.DE));
+end;
+
+// ld c, e
+procedure Instr4B_LDCE(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetLow(CPU^.DE));
+end;
+
+// ld c, h
+procedure Instr4C_LDCH(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetHigh(CPU^.HL));
+end;
+
+// ld c, l
+procedure Instr4D_LDCL(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetLow(CPU^.HL));
+end;
+
+// ld c, (hl)
+procedure Instr4E_LDCRHL(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld c, a
+procedure Instr4F_LDCA(CPU: PCPU);
+begin
+  SetLow(@CPU^.BC, CPU^.A);
+end;
+
+{ 50 }
+
+// ld d, b
+procedure Instr50_LDDB(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetHigh(CPU^.BC));
+end;
+
+// ld d, c
+procedure Instr51_LDDC(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetLow(CPU^.BC));
+end;
+
+// ld d, d
+procedure Instr52_LDDD(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetHigh(CPU^.DE));
+end;
+
+// ld d, e
+procedure Instr53_LDDE(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetLow(CPU^.DE));
+end;
+
+// ld d, h
+procedure Instr54_LDDH(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetHigh(CPU^.HL));
+end;
+
+// ld d, l
+procedure Instr55_LDDL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetLow(CPU^.HL));
+end;
+
+// ld d, (hl)
+procedure Instr56_LDDRHL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld d, a
+procedure Instr57_LDDA(CPU: PCPU);
+begin
+  SetHigh(@CPU^.DE, CPU^.A);
+end;
+
+// ld e, b
+procedure Instr58_LDEB(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetHigh(CPU^.BC));
+end;
+
+// ld e, c
+procedure Instr59_LDEC(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetLow(CPU^.BC));
+end;
+
+// ld e, d
+procedure Instr5A_LDED(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetHigh(CPU^.DE));
+end;
+
+// ld e, e
+procedure Instr5B_LDEE(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetLow(CPU^.DE));
+end;
+
+// ld e, h
+procedure Instr5C_LDEH(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetHigh(CPU^.HL));
+end;
+
+// ld e, l
+procedure Instr5D_LDEL(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetLow(CPU^.HL));
+end;
+
+// ld e, (hl)
+procedure Instr5E_LDERHL(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld e, a
+procedure Instr5F_LDEA(CPU: PCPU);
+begin
+  SetLow(@CPU^.DE, CPU^.A);
+end;
+
+{ 60 }
+
+// ld h, b
+procedure Instr60_LDHB(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetHigh(CPU^.BC));
+end;
+
+// ld h, c
+procedure Instr61_LDHC(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetLow(CPU^.BC));
+end;
+
+// ld h, d
+procedure Instr62_LDHD(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetHigh(CPU^.DE));
+end;
+
+// ld h, e
+procedure Instr63_LDHE(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetLow(CPU^.DE));
+end;
+
+// ld h, h
+procedure Instr64_LDHH(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetHigh(CPU^.HL));
+end;
+
+// ld h, l
+procedure Instr65_LDHL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetLow(CPU^.HL));
+end;
+
+// ld h, (hl)
+procedure Instr66_LDHRHL(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld h, a
+procedure Instr67_LDHA(CPU: PCPU);
+begin
+  SetHigh(@CPU^.HL, CPU^.A);
+end;
+
+// ld l, b
+procedure Instr68_LDLB(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetHigh(CPU^.BC));
+end;
+
+// ld l, c
+procedure Instr69_LDLC(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetLow(CPU^.BC));
+end;
+
+// ld l, d
+procedure Instr6A_LDLD(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetHigh(CPU^.DE));
+end;
+
+// ld l, e
+procedure Instr6B_LDLE(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetLow(CPU^.DE));
+end;
+
+// ld l, h
+procedure Instr6C_LDLH(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetHigh(CPU^.HL));
+end;
+
+// ld l, l
+procedure Instr6D_LDLL(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetLow(CPU^.HL));
+end;
+
+// ld l, (hl)
+procedure Instr6E_LDLRHL(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, GetByte(CPU^.Memory, CPU^.HL));
+end;
+
+// ld l, a
+procedure Instr6F_LDLA(CPU: PCPU);
+begin
+  SetLow(@CPU^.HL, CPU^.A);
+end;
+
+{ 70 }
+
+// ld (hl), b
+procedure Instr70_LDRHLB(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.BC));
+end;
+
+// ld (hl), c
+procedure Instr71_LDRHLC(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.BC));
+end;
+
+// ld (hl), d
+procedure Instr72_LDRHLD(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.DE));
+end;
+
+// ld (hl), e
+procedure Instr73_LDRHLE(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.DE));
+end;
+
+// ld (hl), h
+procedure Instr74_LDRHLH(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.HL));
+end;
+
+// ld (hl), l
+procedure Instr75_LDRHLL(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.HL));
+end;
+
+// halt
+procedure Instr76_HALT(CPU: PCPU);
+begin
+  CPU^.Status := CPU_STATUS_HALT;
+end;
+
+// ld (hl), a
+procedure Instr77_LDRHLA(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, CPU^.HL, CPU^.A);
+end;
+
+// ld a, b
+procedure Instr78_LDAB(CPU: PCPU);
+begin
+  CPU^.A := GetHigh(CPU^.BC);
+end;
+
+// ld a, c
+procedure Instr79_LDAC(CPU: PCPU);
+begin
+  CPU^.A := GetLow(CPU^.BC);
+end;
+
+// ld a, d
+procedure Instr7A_LDAD(CPU: PCPU);
+begin
+  CPU^.A := GetHigh(CPU^.DE);
+end;
+
+// ld a, e
+procedure Instr7B_LDAE(CPU: PCPU);
+begin
+  CPU^.A := GetLow(CPU^.DE);
+end;
+
+// ld a, h
+procedure Instr7C_LDAH(CPU: PCPU);
+begin
+  CPU^.A := GetHigh(CPU^.HL);
+end;
+
+// ld a, l
+procedure Instr7D_LDAL(CPU: PCPU);
+begin
+  CPU^.A := GetLow(CPU^.HL);
+end;
+
+// ld a, (hl)
+procedure Instr7E_LDARHL(CPU: PCPU);
+begin
+  CPU^.A := GetByte(CPU^.Memory, CPU^.HL);
+end;
+
+// ld a, a
+procedure Instr7F_LDAA(CPU: PCPU);
+begin
+  CPU^.A := CPU^.A;
 end;
 
 // Initializing
@@ -670,6 +1068,74 @@ begin
   InitInstruction(@InstrSet[$3D], 0,  4, @Instr3D_DECA);
   InitInstruction(@InstrSet[$3E], 1,  8, @Instr3E_LDAD8);
   InitInstruction(@InstrSet[$3F], 0,  4, @Instr3F_CCF);
+
+  InitInstruction(@InstrSet[$40], 0,  4, @Instr40_LDBB);
+  InitInstruction(@InstrSet[$41], 0,  4, @Instr41_LDBC);
+  InitInstruction(@InstrSet[$42], 0,  4, @Instr42_LDBD);
+  InitInstruction(@InstrSet[$43], 0,  4, @Instr43_LDBE);
+  InitInstruction(@InstrSet[$44], 0,  4, @Instr44_LDBH);
+  InitInstruction(@InstrSet[$45], 0,  4, @Instr45_LDBL);
+  InitInstruction(@InstrSet[$46], 0,  8, @Instr46_LDBRHL);
+  InitInstruction(@InstrSet[$47], 0,  4, @Instr47_LDBA);
+  InitInstruction(@InstrSet[$48], 0,  4, @Instr48_LDCB);
+  InitInstruction(@InstrSet[$49], 0,  4, @Instr49_LDCC);
+  InitInstruction(@InstrSet[$4A], 0,  4, @Instr4A_LDCD);
+  InitInstruction(@InstrSet[$4B], 0,  4, @Instr4B_LDCE);
+  InitInstruction(@InstrSet[$4C], 0,  4, @Instr4C_LDCH);
+  InitInstruction(@InstrSet[$4D], 0,  4, @Instr4D_LDCL);
+  InitInstruction(@InstrSet[$4E], 0,  8, @Instr4E_LDCRHL);
+  InitInstruction(@InstrSet[$4F], 0,  4, @Instr4F_LDCA);
+
+  InitInstruction(@InstrSet[$50], 0,  4, @Instr50_LDDB);
+  InitInstruction(@InstrSet[$51], 0,  4, @Instr51_LDDC);
+  InitInstruction(@InstrSet[$52], 0,  4, @Instr52_LDDD);
+  InitInstruction(@InstrSet[$53], 0,  4, @Instr53_LDDE);
+  InitInstruction(@InstrSet[$54], 0,  4, @Instr54_LDDH);
+  InitInstruction(@InstrSet[$55], 0,  4, @Instr55_LDDL);
+  InitInstruction(@InstrSet[$56], 0,  8, @Instr56_LDDRHL);
+  InitInstruction(@InstrSet[$57], 0,  4, @Instr57_LDDA);
+  InitInstruction(@InstrSet[$58], 0,  4, @Instr58_LDEB);
+  InitInstruction(@InstrSet[$59], 0,  4, @Instr59_LDEC);
+  InitInstruction(@InstrSet[$5A], 0,  4, @Instr5A_LDED);
+  InitInstruction(@InstrSet[$5B], 0,  4, @Instr5B_LDEE);
+  InitInstruction(@InstrSet[$5C], 0,  4, @Instr5C_LDEH);
+  InitInstruction(@InstrSet[$5D], 0,  4, @Instr5D_LDEL);
+  InitInstruction(@InstrSet[$5E], 0,  8, @Instr5E_LDERHL);
+  InitInstruction(@InstrSet[$5F], 0,  4, @Instr5F_LDEA);
+
+  InitInstruction(@InstrSet[$60], 0,  4, @Instr60_LDHB);
+  InitInstruction(@InstrSet[$61], 0,  4, @Instr61_LDHC);
+  InitInstruction(@InstrSet[$62], 0,  4, @Instr62_LDHD);
+  InitInstruction(@InstrSet[$63], 0,  4, @Instr63_LDHE);
+  InitInstruction(@InstrSet[$64], 0,  4, @Instr64_LDHH);
+  InitInstruction(@InstrSet[$65], 0,  4, @Instr65_LDHL);
+  InitInstruction(@InstrSet[$66], 0,  8, @Instr66_LDHRHL);
+  InitInstruction(@InstrSet[$67], 0,  4, @Instr67_LDHA);
+  InitInstruction(@InstrSet[$68], 0,  4, @Instr68_LDLB);
+  InitInstruction(@InstrSet[$69], 0,  4, @Instr69_LDLC);
+  InitInstruction(@InstrSet[$6A], 0,  4, @Instr6A_LDLD);
+  InitInstruction(@InstrSet[$6B], 0,  4, @Instr6B_LDLE);
+  InitInstruction(@InstrSet[$6C], 0,  4, @Instr6C_LDLH);
+  InitInstruction(@InstrSet[$6D], 0,  4, @Instr6D_LDLL);
+  InitInstruction(@InstrSet[$6E], 0,  8, @Instr6E_LDLRHL);
+  InitInstruction(@InstrSet[$6F], 0,  4, @Instr6F_LDLA);
+
+  InitInstruction(@InstrSet[$70], 0,  8, @Instr70_LDRHLB);
+  InitInstruction(@InstrSet[$71], 0,  8, @Instr71_LDRHLC);
+  InitInstruction(@InstrSet[$72], 0,  8, @Instr72_LDRHLD);
+  InitInstruction(@InstrSet[$73], 0,  8, @Instr73_LDRHLE);
+  InitInstruction(@InstrSet[$74], 0,  8, @Instr74_LDRHLH);
+  InitInstruction(@InstrSet[$75], 0,  8, @Instr75_LDRHLL);
+  InitInstruction(@InstrSet[$76], 0,  4, @Instr76_HALT);
+  InitInstruction(@InstrSet[$77], 0,  8, @Instr77_LDRHLA);
+  InitInstruction(@InstrSet[$78], 0,  4, @Instr78_LDAB);
+  InitInstruction(@InstrSet[$79], 0,  4, @Instr79_LDAC);
+  InitInstruction(@InstrSet[$7A], 0,  4, @Instr7A_LDAD);
+  InitInstruction(@InstrSet[$7B], 0,  4, @Instr7B_LDAE);
+  InitInstruction(@InstrSet[$7C], 0,  4, @Instr7C_LDAH);
+  InitInstruction(@InstrSet[$7D], 0,  4, @Instr7D_LDAL);
+  InitInstruction(@InstrSet[$7E], 0,  8, @Instr7E_LDARHL);
+  InitInstruction(@InstrSet[$7F], 0,  4, @Instr7F_LDAA);
 end;
 
 end.

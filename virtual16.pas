@@ -1,6 +1,6 @@
 unit virtual16;
 
-{$mode objfpc}{$H+}
+{$mode fpc}{$H+}
 {$inline on}
 
 interface
@@ -9,7 +9,7 @@ const
   VIRTUAL16_BLOCKSIZE = $10000;
 
 // Block routines
-function AllocVirtual16Block(Clear: Boolean = True): Pointer;
+function AllocVirtual16Block(Clear: Boolean): Pointer;
 procedure DumpVirtual16Block(Block: Pointer; FileName: ShortString);
 procedure LoadVirtual16Block(Block: Pointer; FileName: ShortString);
 
@@ -23,11 +23,11 @@ implementation
 
 // Block routines
 
-function AllocVirtual16Block(Clear: Boolean = True): Pointer;
+function AllocVirtual16Block(Clear: Boolean): Pointer;
 begin
-  Result := GetMem(VIRTUAL16_BLOCKSIZE);
+  AllocVirtual16Block := GetMem(VIRTUAL16_BLOCKSIZE);
   if Clear then
-    FillDWord(Result^, VIRTUAL16_BLOCKSIZE shr 2, $00000000);
+    FillDWord(AllocVirtual16Block^, VIRTUAL16_BLOCKSIZE shr 2, $00000000);
 end;
 
 procedure DumpVirtual16Block(Block: Pointer; FileName: ShortString);
@@ -39,13 +39,13 @@ var
   i: Byte;
   buf: array [0 .. (BLOCK_SIZE shr 2) - 1] of DWord;
 begin
-  AssignFile(target, FileName);
+  Assign(target, FileName);
   Rewrite(target, 4);
   for i := 0 to BLOCK_COUNT - 1 do begin
     buf := PDWord(Block + i * BLOCK_SIZE);
     BlockWrite(target, buf, BLOCK_SIZE shr 2);
   end;
-  CloseFile(target);
+  Close(target);
 end;
 
 procedure LoadVirtual16Block(Block: Pointer; FileName: ShortString);
@@ -57,13 +57,13 @@ var
   i: Byte;
   buf: array [0 .. (BLOCK_SIZE shr 2) - 1] of DWord;
 begin
-  AssignFile(target, FileName);
+  Assign(target, FileName);
   Reset(target, 4);
   for i := 0 to BLOCK_COUNT - 1 do begin
     buf := PDWord(Block + i * BLOCK_SIZE);
     BlockRead(target, buf, BLOCK_SIZE shr 2);
   end;
-  CloseFile(target);
+  Close(target);
 end;
 
 // Data routines
@@ -78,7 +78,7 @@ end;
 function GetByte(Mem: Pointer; Offset: Word): Byte;
 begin
   ValidateOffset(Offset);
-  Result := PByte(Mem + Offset)^;
+  GetByte := PByte(Mem + Offset)^;
 end;
 
 procedure SetByte(Mem: Pointer; Offset: Word; Data: Byte);
@@ -90,7 +90,7 @@ end;
 function GetWord(Mem: Pointer; Offset: Word): Word;
 begin
   ValidateOffset(Offset);
-  Result := PWord(Mem + Offset)^;
+  GetWord := PWord(Mem + Offset)^;
 end;
 
 procedure SetWord(Mem: Pointer; Offset: Word; Data: Word);

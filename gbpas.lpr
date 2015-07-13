@@ -1,6 +1,6 @@
 library gbpas;
 
-{$mode objfpc}{$H+}
+{$mode fpc}{$H+}
 
 uses
   virtual16, cpu;
