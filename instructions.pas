@@ -51,12 +51,27 @@ begin
   CPU^.Zero := Data = 0;
 end;
 
-procedure CheckHalfCarry(CPU: PCPU; Data: Word); inline;
+procedure CheckHalfCarryAdd8(CPU: PCPU; A, B: Byte); inline;
 begin
-  CPU^.HalfCarry := (Data and CPU_HALFCARRY_MASK) > 0;
+  CPU^.HalfCarry := (A and $0F + B and $0F) and CPU_HALFCARRY_MASK > 0;
 end;
 
-// Affects: H Z N C
+procedure CheckHalfCarrySub8(CPU: PCPU; A, B: Byte); inline;
+begin
+  CPU^.HalfCarry := (A and $0F - B and $0F) and CPU_HALFCARRY_MASK > 0;
+end;
+
+procedure CheckHalfCarryAdd16(CPU: PCPU; A, B: Word); inline;
+begin
+  CPU^.HalfCarry := (A and $0FFF + B and $0FFF) and CPU_HIGHHALFCARRY_MASK > 0;
+end;
+
+procedure CheckHalfCarrySub16(CPU: PCPU; A, B: Word); inline;
+begin
+  CPU^.HalfCarry := (A and $0FFF - B and $0FFF) and CPU_HIGHHALFCARRY_MASK > 0;
+end;
+
+// Affects: H=0 Z=0 N=0 C
 procedure RLC(Target: PByte; CPU: PCPU); inline;
 begin
   CPU^.Carry := Target^ > $7F;
@@ -70,7 +85,7 @@ begin
   end;
 end;
 
-// Affects: H Z N C
+// Affects: H=0 Z=0 N=0 C
 procedure RL(Target: PByte; CPU: PCPU); inline;
 var
   prevCarry: Boolean;
@@ -87,7 +102,7 @@ begin
   end;
 end;
 
-// Affects: H Z N C
+// Affects: H=0 Z=0 N=0 C
 procedure RRC(Target: PByte; CPU: PCPU); inline;
 begin
   CPU^.Carry := (Target^ and 1) > 0;
@@ -101,7 +116,7 @@ begin
   end;
 end;
 
-// Affects: H Z N C
+// Affects: H=0 Z=0 N=0 C
 procedure RR(Target: PByte; CPU: PCPU); inline;
 var
   prevCarry: Boolean;
@@ -118,54 +133,238 @@ begin
   end;
 end;
 
-// Affects: H N
+// Affects: H=0 Z N=0 C
+procedure SLA(Target: PByte; CPU: PCPU); inline;
+begin
+  CPU^.Carry := Target^ > $7F;
+  Target^ := Target^ shl 1;
+  Target^ += (Target^ and $02) shr 1;
+  CPU^.Zero := Target^ = 0;
+  CPU^.HalfCarry := False;
+  CPU^.Negative := False;
+end;
+
+// Affects: H=0 Z N=0 C
+procedure SRA(Target: PByte; CPU: PCPU); inline;
+begin
+  CPU^.Carry := Target^ and $01 > 0;
+  Target^ := Target^ shr 1;
+  Target^ += (Target^ and $40) shl 1;
+  CPU^.Zero := Target^ = 0;
+  CPU^.HalfCarry := False;
+  CPU^.Negative := False;
+end;
+
+// Affects: H=0 Z N=0 C
+procedure SRL(Target: PByte; CPU: PCPU); inline;
+begin
+  CPU^.Carry := Target^ and $01 > 0;
+  Target^ := Target^ shr 1;
+  if CPU^.Carry then
+    Target^ += $80;
+  CPU^.Zero := Target^ = 0;
+  CPU^.HalfCarry := False;
+  CPU^.Negative := False;
+end;
+
+// Affects: Z H=1 N=0
+procedure Bit(Src: Byte; Pos: Byte; CPU: PCPU); inline;
+begin
+  CPU^.Zero := Src and (1 shl Pos) = 0;
+end;
+
+procedure ResBit(Target: PByte; Pos: Byte); inline;
+begin
+  Target^ := Target^ and not (1 shl Pos);
+end;
+
+procedure SetBit(Target: PByte; Pos: Byte); inline;
+begin
+  Target^ := Target^ or (1 shl Pos);
+end;
+
+function GetAF(CPU: PCPU): Word; inline;
+begin
+  GetAF := CPU^.A shl 8;
+  if CPU^.Zero then
+    GetAF += $80;
+  if CPU^.Negative then
+    GetAF += $40;
+  if CPU^.HalfCarry then
+    GetAF += $20;
+  if CPU^.Carry then
+    GetAF += $10;
+end;
+
+procedure SetAF(CPU: PCPU; Data: Word); inline;
+begin
+  CPU^.A := Data and $FF00 shr 8;
+  CPU^.Zero := Data and $80 > 0;
+  CPU^.Negative := Data and $40 > 0;
+  CPU^.HalfCarry := Data and $20 > 0;
+  CPU^.Carry := Data and $10 > 0;
+end;
+
+// Affects: H=0 Z N=0 C=0
+procedure Swap(Target: PByte; CPU: PCPU); inline;
+begin
+  Target^ := (Target^ and $0F) shl 4 + Target^ shr 4;
+  CPU^.Zero := Target^ = 0;
+  CPU^.HalfCarry := False;
+  CPU^.Negative := False;
+  CPU^.Carry := False;
+end;
+
+// Affects: H N=0
 procedure Add8(Target: PByte; Data: Byte; CPU: PCPU); inline;
 begin
+  CheckHalfCarryAdd8(CPU, Target^, Data);
   Target^ += Data;
   CPU^.Negative := False;
-  CheckHalfCarry(CPU, Target^);
 end;
 
-// Affects: H N
+// Affects: H N=0 C Z
+procedure Add8CZ(Target: PByte; Data: Byte; CPU: PCPU); inline;
+begin
+  CheckHalfCarryAdd8(CPU, Target^, Data);
+  Target^ += Data;
+  CPU^.Negative := False;
+  CPU^.Carry := Target^ < Data;
+  CPU^.Zero := Target^ = 0;
+end;
+
+// Affects: H N=0 C Z
+procedure AddC8CZ(Target: PByte; Data: Byte; CPU: PCPU); inline;
+begin
+  CheckHalfCarryAdd8(CPU, Target^, Data);
+  Target^ += Data;
+  if CPU^.Carry then
+    Target^ += 1;
+  CPU^.Negative := False;
+  CPU^.Carry := Target^ < Data;
+  CPU^.Zero := Target^ = 0;
+end;
+
+// Affects: H N=0
 procedure Add16(Target: PWord; Data: Word; CPU: PCPU); inline;
 begin
+  CheckHalfCarryAdd16(CPU, Target^, Data);
   Target^ += Data;
   CPU^.Negative := False;
-  CheckHalfCarry(CPU, Target^);
 end;
 
-// Affects: H N
+// Affects: H N=1
 procedure Sub8(Target: PByte; Data: Byte; CPU: PCPU); inline;
 begin
+  CheckHalfCarryAdd8(CPU, Target^, Data);
   Target^ -= Data;
   CPU^.Negative := True;
-  CheckHalfCarry(CPU, Target^);
 end;
 
-// Affects: H N
+// Affects: H N=1 C Z
+procedure Sub8CZ(Target: PByte; Data: Byte; CPU: PCPU); inline;
+var
+  prevTarget: Byte;
+begin
+  CheckHalfCarryAdd8(CPU, Target^, Data);
+  prevTarget := Target^;
+  Target^ -= Data;
+  CPU^.Negative := True;
+  CPU^.Carry := Target^ > prevTarget;
+  CPU^.Zero := Target^ = 0;
+end;
+
+// Affects: H N=1 C Z
+procedure SubC8CZ(Target: PByte; Data: Byte; CPU: PCPU); inline;
+var
+  prevTarget: Byte;
+begin
+  CheckHalfCarrySub8(CPU, Target^, Data);
+  prevTarget := Target^;
+  Target^ -= Data;
+  if CPU^.Carry then
+    Target^ -= 1;
+  CPU^.Negative := True;
+  CPU^.Carry := Target^ > prevTarget;
+  CPU^.Zero := Target^ = 0;
+end;
+
+// Affects: H N=1
 procedure Sub16(Target: PWord; Data: Word; CPU: PCPU); inline;
 begin
+  CheckHalfCarrySub16(CPU, Target^, Data);
   Target^ -= Data;
   CPU^.Negative := True;
-  CheckHalfCarry(CPU, Target^);
 end;
 
-// Affects: N Z H
+// Affects: H N=1 C Z
+procedure Cmp8(Target: Byte; Data: Byte; CPU: PCPU); inline;
+var
+  prevTarget: Byte;
+begin
+  CheckHalfCarrySub8(CPU, Target, Data);
+  prevTarget := Target;
+  Target -= Data;
+  CPU^.Negative := True;
+  CPU^.Carry := Target > prevTarget;
+  CPU^.Zero := Target = 0;
+end;
+
+// Affects: N=0 Z H
 procedure IncX4(CPU: PCPU; Target: PByte); inline;
 begin
+  CheckHalfCarryAdd8(CPU, Target^, 1);
   Target^ += 1;
   CheckZero(CPU, Target^);
-  CheckHalfCarry(CPU, Target^);
   CPU^.Negative := False;
 end;
 
-// Affects: N Z H
+// Affects: N=1 Z H
 procedure DecX5(CPU: PCPU; Target: PByte); inline;
 begin
+  CheckHalfCarrySub8(CPU, Target^, 1);
   Target^ -= 1;
   CheckZero(CPU, Target^);
-  CheckHalfCarry(CPU, Target^);
   CPU^.Negative := True;
+end;
+
+procedure And8(Target: PByte; Data: Byte; CPU: PCPU); inline;
+begin
+  Target^ := Target^ and Data;
+  CPU^.HalfCarry := True;
+  CPU^.Carry := False;
+  CPU^.Negative := False;
+  CPU^.Zero := Target^ = 0;
+end;
+
+procedure Or8(Target: PByte; Data: Byte; CPU: PCPU); inline;
+begin
+  Target^ := Target^ or Data;
+  CPU^.HalfCarry := False;
+  CPU^.Carry := False;
+  CPU^.Negative := False;
+  CPU^.Zero := Target^ = 0;
+end;
+
+procedure Xor8(Target: PByte; Data: Byte; CPU: PCPU); inline;
+begin
+  Target^ := Target^ xor Data;
+  CPU^.HalfCarry := False;
+  CPU^.Carry := False;
+  CPU^.Negative := False;
+  CPU^.Zero := Target^ = 0;
+end;
+
+procedure Push(CPU: PCPU; Data: Word); inline;
+begin
+  CPU^.SP -= 2;
+  SetWord(CPU^.Memory, CPU^.SP, Data);
+end;
+
+function Pop(CPU: PCPU): Word; inline;
+begin
+  Pop := GetWord(CPU^.Memory, CPU^.SP);
+  CPU^.SP += 2;
 end;
 
 function GetByteArg(CPU: PCPU; Offset: Byte): Byte; inline;
@@ -990,6 +1189,796 @@ begin
   CPU^.A := CPU^.A;
 end;
 
+{ 80 }
+
+// add a, b
+procedure Instr80_ADDAB(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// add a, c
+procedure Instr81_ADDAC(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// add a, d
+procedure Instr82_ADDAD(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// add a, e
+procedure Instr83_ADDAE(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// add a, h
+procedure Instr84_ADDAH(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// add a, l
+procedure Instr85_ADDAL(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// add a, (hl)
+procedure Instr86_ADDARHL(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// add a, a
+procedure Instr87_ADDAA(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, CPU^.A, CPU);
+end;
+
+// adc a, b
+procedure Instr88_ADCAB(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// adc a, c
+procedure Instr89_ADCAC(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// adc a, d
+procedure Instr8A_ADCAD(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// adc a, e
+procedure Instr8B_ADCAE(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// adc a, h
+procedure Instr8C_ADCAH(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// adc a, l
+procedure Instr8D_ADCAL(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// adc a, (hl)
+procedure Instr8E_ADCARHL(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// adc a, a
+procedure Instr8F_ADCAA(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, CPU^.A, CPU);
+end;
+
+{ 90 }
+
+// sub b
+procedure Instr90_SUBB(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// sub c
+procedure Instr91_SUBC(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// sub d
+procedure Instr92_SUBD(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// sub e
+procedure Instr93_SUBE(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// sub h
+procedure Instr94_SUBH(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// sub l
+procedure Instr95_SUBL(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// sub (hl)
+procedure Instr96_SUBRHL(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// sub a
+procedure Instr97_SUBA(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, CPU^.A, CPU);
+end;
+
+// sbc a, b
+procedure Instr98_SBCAB(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// sbc a, c
+procedure Instr99_SBCAC(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// sbc a, d
+procedure Instr9A_SBCAD(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// sbc a, e
+procedure Instr9B_SBCAE(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// sbc a, h
+procedure Instr9C_SBCAH(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// sbc a, l
+procedure Instr9D_SBCAL(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// sbc a, (hl)
+procedure Instr9E_SBCARHL(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// sbc a, a
+procedure Instr9F_SBCAA(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, CPU^.A, CPU);
+end;
+
+{ A0 }
+
+// and b
+procedure InstrA0_ANDB(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// and c
+procedure InstrA1_ANDC(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// and d
+procedure InstrA2_ANDD(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// and e
+procedure InstrA3_ANDE(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// and h
+procedure InstrA4_ANDH(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// and l
+procedure InstrA5_ANDL(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// and (hl)
+procedure InstrA6_ANDRHL(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// and a
+procedure InstrA7_ANDA(CPU: PCPU);
+begin
+  And8(@CPU^.A, CPU^.A, CPU);
+end;
+
+// xor b
+procedure InstrA8_XORB(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// xor c
+procedure InstrA9_XORC(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// xor d
+procedure InstrAA_XORD(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// xor e
+procedure InstrAB_XORE(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// xor h
+procedure InstrAC_XORH(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// xor l
+procedure InstrAD_XORL(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// xor (hl)
+procedure InstrAE_XORRHL(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// xor a
+procedure InstrAF_XORA(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, CPU^.A, CPU);
+end;
+
+{ B0 }
+
+// or b
+procedure InstrB0_ORB(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// or c
+procedure InstrB1_ORC(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// or d
+procedure InstrB2_ORD(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// or e
+procedure InstrB3_ORE(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// or h
+procedure InstrB4_ORH(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// or l
+procedure InstrB5_ORL(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// or (hl)
+procedure InstrB6_ORRHL(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// or a
+procedure InstrB7_ORA(CPU: PCPU);
+begin
+  Or8(@CPU^.A, CPU^.A, CPU);
+end;
+
+// cp b
+procedure InstrB8_CPB(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetHigh(CPU^.BC), CPU);
+end;
+
+// cp c
+procedure InstrB9_CPC(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetLow(CPU^.BC), CPU);
+end;
+
+// cp d
+procedure InstrBA_CPD(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetHigh(CPU^.DE), CPU);
+end;
+
+// cp e
+procedure InstrBB_CPE(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetLow(CPU^.DE), CPU);
+end;
+
+// cp h
+procedure InstrBC_CPH(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetHigh(CPU^.HL), CPU);
+end;
+
+// cp l
+procedure InstrBD_CPL(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetLow(CPU^.HL), CPU);
+end;
+
+// cp (hl)
+procedure InstrBE_CPRHL(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+end;
+
+// cp a
+procedure InstrBF_CPA(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, CPU^.A, CPU);
+end;
+
+{ C0 }
+
+// ret nz
+procedure InstrC0_RETNZ(CPU: PCPU);
+begin
+  if not CPU^.Zero then
+    CPU^.IP := Pop(CPU);
+end;
+
+// pop bc
+procedure InstrC1_POPBC(CPU: PCPU);
+begin
+  CPU^.BC := Pop(CPU);
+end;
+
+// jp nz, a16
+procedure InstrC2_JPNZA16(CPU: PCPU);
+begin
+  if not CPU^.Zero then
+    CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// jp a16
+procedure InstrC3_JPA16(CPU: PCPU);
+begin
+  CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// call nz, a16
+procedure InstrC4_CALLNZA16(CPU: PCPU);
+begin
+  if not CPU^.Zero then begin
+    Push(CPU, CPU^.IP);
+    CPU^.IP := GetWordArg(CPU, 1);
+  end;
+end;
+
+// push bc
+procedure InstrC5_PUSHBC(CPU: PCPU);
+begin
+  Push(CPU, CPU^.BC);
+end;
+
+// add a, d8
+procedure InstrC6_ADDAD8(CPU: PCPU);
+begin
+  Add8CZ(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 00h
+procedure InstrC7_RST00(CPU: PCPU);
+begin
+  CPU^.IP := $00;
+end;
+
+// ret z
+procedure InstrC8_RETZ(CPU: PCPU);
+begin
+  if CPU^.Zero then
+    CPU^.IP := Pop(CPU);
+end;
+
+// ret
+procedure InstrC9_RET(CPU: PCPU);
+begin
+  CPU^.IP := Pop(CPU);
+end;
+
+// jp z, a16
+procedure InstrCA_JPZA16(CPU: PCPU);
+begin
+  if CPU^.Zero then
+    CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// Prefix CB
+procedure InstrCB_PREFCB(CPU: PCPU);
+var
+  target: PByte;
+  arg: Byte;
+begin
+  arg := GetByteArg(CPU, 1);
+  if arg and $07 = 6 then
+    CPU^.CycleCount += 12
+  else
+    CPU^.CycleCount += 4;
+  case arg and $07 of
+    0: target := PByte(@CPU^.BC) + 1;
+    1: target := PByte(@CPU^.BC);
+    2: target := PByte(@CPU^.DE) + 1;
+    3: target := PByte(@CPU^.DE);
+    4: target := PByte(@CPU^.HL) + 1;
+    5: target := PByte(@CPU^.HL);
+    6: target := PByte(CPU^.Memory) + CPU^.HL;
+    7: target := @CPU^.A;
+  end;
+  case arg shr 3 of
+    0: begin RLC(target, CPU); CheckZero(CPU, target^) end;
+    1: begin RRC(target, CPU); CheckZero(CPU, target^) end;
+    2: begin RL (target, CPU); CheckZero(CPU, target^) end;
+    3: begin RR (target, CPU); CheckZero(CPU, target^) end;
+    4: SLA (target, CPU);
+    5: SRA (target, CPU);
+    6: Swap(target, CPU);
+    7: SRL (target, CPU);
+    8 ..15: Bit(target^, arg shr 3 and $07, CPU);
+    16..23: ResBit(target, arg shr 3 and $07);
+    24..31: SetBit(target, arg shr 3 and $07);
+  end;
+end;
+
+// call z, a16
+procedure InstrCC_CALLZA16(CPU: PCPU);
+begin
+  if CPU^.Zero then begin
+    Push(CPU, CPU^.IP);
+    CPU^.IP := GetWordArg(CPU, 1);
+  end;
+end;
+
+// call a16
+procedure InstrCD_CALLA16(CPU: PCPU);
+begin
+  Push(CPU, CPU^.IP);
+  CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// adc a, d8
+procedure InstrCE_ADCAD8(CPU: PCPU);
+begin
+  AddC8CZ(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 08h
+procedure InstrCF_RST08(CPU: PCPU);
+begin
+  CPU^.IP := $08;
+end;
+
+{ D0 }
+
+// ret nc
+procedure InstrD0_RETNC(CPU: PCPU);
+begin
+  if not CPU^.Carry then
+    CPU^.IP := Pop(CPU);
+end;
+
+// pop de
+procedure InstrD1_POPDE(CPU: PCPU);
+begin
+  CPU^.DE := Pop(CPU);
+end;
+
+// jp nc, a16
+procedure InstrD2_JPNCA16(CPU: PCPU);
+begin
+  if not CPU^.Carry then
+    CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// call nC, a16
+procedure InstrD4_CALLNCA16(CPU: PCPU);
+begin
+  if not CPU^.Carry then begin
+    Push(CPU, CPU^.IP);
+    CPU^.IP := GetWordArg(CPU, 1);
+  end;
+end;
+
+// push de
+procedure InstrD5_PUSHDE(CPU: PCPU);
+begin
+  Push(CPU, CPU^.DE);
+end;
+
+// sub d8
+procedure InstrD6_SUBD8(CPU: PCPU);
+begin
+  Sub8CZ(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 10h
+procedure InstrD7_RST10(CPU: PCPU);
+begin
+  CPU^.IP := $10;
+end;
+
+// ret c
+procedure InstrD8_RETC(CPU: PCPU);
+begin
+  if CPU^.Carry then
+    CPU^.IP := Pop(CPU);
+end;
+
+// reti
+procedure InstrD9_RETI(CPU: PCPU);
+begin
+  CPU^.IP := Pop(CPU);
+  CPU^.Interrupts := True;
+end;
+
+// jp c, a16
+procedure InstrDA_JPCA16(CPU: PCPU);
+begin
+  if CPU^.Carry then
+    CPU^.IP := GetWordArg(CPU, 1);
+end;
+
+// call c, a16
+procedure InstrDC_CALLCA16(CPU: PCPU);
+begin
+  if CPU^.Carry then begin
+    Push(CPU, CPU^.IP);
+    CPU^.IP := GetWordArg(CPU, 1);
+  end;
+end;
+
+// sbc a, d8
+procedure InstrDE_SBCAD8(CPU: PCPU);
+begin
+  SubC8CZ(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 18h
+procedure InstrDF_RST18(CPU: PCPU);
+begin
+  CPU^.IP := $18;
+end;
+
+{ E0 }
+
+// ldh (a8), a
+procedure InstrE0_LDHR8A(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, $FF00 + GetByteArg(CPU, 1), CPU^.A);
+end;
+
+// pop hl
+procedure InstrE1_POPHL(CPU: PCPU);
+begin
+  CPU^.HL := Pop(CPU);
+end;
+
+// ldh (c), a
+procedure InstrE2_LDRCA(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, $FF00 + GetLow(CPU^.BC), CPU^.A);
+end;
+
+// push hl
+procedure InstrE5_PUSHHL(CPU: PCPU);
+begin
+  Push(CPU, CPU^.HL);
+end;
+
+// and d8
+procedure InstrE6_ANDD8(CPU: PCPU);
+begin
+  And8(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 20h
+procedure InstrE7_RST20(CPU: PCPU);
+begin
+  CPU^.IP := $20;
+end;
+
+// add sp, r8
+procedure InstrE8_ADDSPR8(CPU: PCPU);
+var
+  data: ShortInt;
+begin
+  data := ShortInt(GetByteArg(CPU, 1));
+  CPU^.Carry := CPU^.SP + data <> DWord(CPU^.SP) + data;
+  if data >= 0 then
+    CheckHalfCarryAdd16(CPU, CPU^.SP, data)
+  else
+    CheckHalfCarrySub16(CPU, CPU^.SP, Abs(data));
+  CPU^.SP += data;
+  CPU^.Zero := False;
+  CPU^.Negative := False;
+end;
+
+// jp (hl)
+procedure InstrE9_JPHL(CPU: PCPU);
+begin
+  CPU^.IP := CPU^.HL;
+end;
+
+// ld (a16), a
+procedure InstrEA_LDA16A(CPU: PCPU);
+begin
+  SetByte(CPU^.Memory, GetWordArg(CPU, 1), CPU^.A);
+end;
+
+// xor d8
+procedure InstrEE_XORD8(CPU: PCPU);
+begin
+  Xor8(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 28h
+procedure InstrEF_RST28(CPU: PCPU);
+begin
+  CPU^.IP := $28;
+end;
+
+{ F0 }
+
+// ldh a, (a8)
+procedure InstrF0_LDHAA8(CPU: PCPU);
+begin
+  CPU^.A := GetByte(CPU^.Memory, $FF00 + GetByteArg(CPU, 1));
+end;
+
+// pop af
+procedure InstrF1_POPAF(CPU: PCPU);
+begin
+  SetAF(CPU, Pop(CPU));
+end;
+
+// ld a, (c)
+procedure InstrF2_LDARC(CPU: PCPU);
+begin
+  CPU^.A := GetByte(CPU^.Memory, $FF00 + GetLow(CPU^.BC));
+end;
+
+// di
+procedure InstrF3_DI(CPU: PCPU);
+begin
+  CPU^.Interrupts := False;
+end;
+
+// push af
+procedure InstrF5_PUSHAF(CPU: PCPU);
+begin
+  Push(CPU, GetAF(CPU));
+end;
+
+// or d8
+procedure InstrF6_ORD8(CPU: PCPU);
+begin
+  Or8(@CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 30h
+procedure InstrF7_RST30(CPU: PCPU);
+begin
+  CPU^.IP := $30;
+end;
+
+// ld hl, sp+r8
+procedure InstrF8_LDHLSPR8(CPU: PCPU);
+var
+  data: ShortInt;
+begin
+  data := ShortInt(GetByteArg(CPU, 1));
+  if data >= 0 then
+    CheckHalfCarryAdd8(CPU, GetHigh(CPU^.SP), data)
+  else
+    CheckHalfCarrySub8(CPU, GetHigh(CPU^.SP), Abs(data));
+  CPU^.HL := CPU^.SP + data;
+  CPU^.Carry := DWord(CPU^.SP) + data <> CPU^.HL;
+  CPU^.Negative := False;
+  CPU^.Zero := False;
+end;
+
+// ld sp, hl
+procedure InstrF9_LDSPHL(CPU: PCPU);
+begin
+  CPU^.SP := CPU^.HL;
+end;
+
+// ld a, (a16)
+procedure InstrFA_LDAA16(CPU: PCPU);
+begin
+  CPU^.A := GetByte(CPU^.Memory, GetWordArg(CPU, 1));
+end;
+
+// ei
+procedure InstrFB_EI(CPU: PCPU);
+begin
+  CPU^.Interrupts := True;
+end;
+
+// cp d8
+procedure InstrFE_CPD8(CPU: PCPU);
+begin
+  Cmp8(CPU^.A, GetByteArg(CPU, 1), CPU);
+end;
+
+// rst 38H
+procedure InstrFF_RST38(CPU: PCPU);
+begin
+  CPU^.IP := $38;
+end;
+
 // Initializing
 
 procedure InitInstruction(Target: PInstruction; ArgLen: Byte; ClockCount: Byte; Impl: PInstructionImpl);
@@ -1136,6 +2125,142 @@ begin
   InitInstruction(@InstrSet[$7D], 0,  4, @Instr7D_LDAL);
   InitInstruction(@InstrSet[$7E], 0,  8, @Instr7E_LDARHL);
   InitInstruction(@InstrSet[$7F], 0,  4, @Instr7F_LDAA);
+
+  InitInstruction(@InstrSet[$80], 0,  4, @Instr80_ADDAB);
+  InitInstruction(@InstrSet[$81], 0,  4, @Instr81_ADDAC);
+  InitInstruction(@InstrSet[$82], 0,  4, @Instr82_ADDAD);
+  InitInstruction(@InstrSet[$83], 0,  4, @Instr83_ADDAE);
+  InitInstruction(@InstrSet[$84], 0,  4, @Instr84_ADDAH);
+  InitInstruction(@InstrSet[$85], 0,  4, @Instr85_ADDAL);
+  InitInstruction(@InstrSet[$86], 0,  8, @Instr86_ADDARHL);
+  InitInstruction(@InstrSet[$87], 0,  4, @Instr87_ADDAA);
+  InitInstruction(@InstrSet[$88], 0,  4, @Instr88_ADCAB);
+  InitInstruction(@InstrSet[$89], 0,  4, @Instr89_ADCAC);
+  InitInstruction(@InstrSet[$8A], 0,  4, @Instr8A_ADCAD);
+  InitInstruction(@InstrSet[$8B], 0,  4, @Instr8B_ADCAE);
+  InitInstruction(@InstrSet[$8C], 0,  4, @Instr8C_ADCAH);
+  InitInstruction(@InstrSet[$8D], 0,  4, @Instr8D_ADCAL);
+  InitInstruction(@InstrSet[$8E], 0,  8, @Instr8E_ADCARHL);
+  InitInstruction(@InstrSet[$8F], 0,  4, @Instr8F_ADCAA);
+
+  InitInstruction(@InstrSet[$90], 0,  4, @Instr90_SUBB);
+  InitInstruction(@InstrSet[$91], 0,  4, @Instr91_SUBC);
+  InitInstruction(@InstrSet[$92], 0,  4, @Instr92_SUBD);
+  InitInstruction(@InstrSet[$93], 0,  4, @Instr93_SUBE);
+  InitInstruction(@InstrSet[$94], 0,  4, @Instr94_SUBH);
+  InitInstruction(@InstrSet[$95], 0,  4, @Instr95_SUBL);
+  InitInstruction(@InstrSet[$96], 0,  8, @Instr96_SUBRHL);
+  InitInstruction(@InstrSet[$97], 0,  4, @Instr97_SUBA);
+  InitInstruction(@InstrSet[$98], 0,  4, @Instr98_SBCAB);
+  InitInstruction(@InstrSet[$99], 0,  4, @Instr99_SBCAC);
+  InitInstruction(@InstrSet[$9A], 0,  4, @Instr9A_SBCAD);
+  InitInstruction(@InstrSet[$9B], 0,  4, @Instr9B_SBCAE);
+  InitInstruction(@InstrSet[$9C], 0,  4, @Instr9C_SBCAH);
+  InitInstruction(@InstrSet[$9D], 0,  4, @Instr9D_SBCAL);
+  InitInstruction(@InstrSet[$9E], 0,  8, @Instr9E_SBCARHL);
+  InitInstruction(@InstrSet[$9F], 0,  4, @Instr9F_SBCAA);
+
+  InitInstruction(@InstrSet[$A0], 0,  4, @InstrA0_ANDB);
+  InitInstruction(@InstrSet[$A1], 0,  4, @InstrA1_ANDC);
+  InitInstruction(@InstrSet[$A2], 0,  4, @InstrA2_ANDD);
+  InitInstruction(@InstrSet[$A3], 0,  4, @InstrA3_ANDE);
+  InitInstruction(@InstrSet[$A4], 0,  4, @InstrA4_ANDH);
+  InitInstruction(@InstrSet[$A5], 0,  4, @InstrA5_ANDL);
+  InitInstruction(@InstrSet[$A6], 0,  8, @InstrA6_ANDRHL);
+  InitInstruction(@InstrSet[$A7], 0,  4, @InstrA7_ANDA);
+  InitInstruction(@InstrSet[$A8], 0,  4, @InstrA8_XORB);
+  InitInstruction(@InstrSet[$A9], 0,  4, @InstrA9_XORC);
+  InitInstruction(@InstrSet[$AA], 0,  4, @InstrAA_XORD);
+  InitInstruction(@InstrSet[$AB], 0,  4, @InstrAB_XORE);
+  InitInstruction(@InstrSet[$AC], 0,  4, @InstrAC_XORH);
+  InitInstruction(@InstrSet[$AD], 0,  4, @InstrAD_XORL);
+  InitInstruction(@InstrSet[$AE], 0,  8, @InstrAE_XORRHL);
+  InitInstruction(@InstrSet[$AF], 0,  4, @InstrAF_XORA);
+
+  InitInstruction(@InstrSet[$B0], 0,  4, @InstrB0_ORB);
+  InitInstruction(@InstrSet[$B1], 0,  4, @InstrB1_ORC);
+  InitInstruction(@InstrSet[$B2], 0,  4, @InstrB2_ORD);
+  InitInstruction(@InstrSet[$B3], 0,  4, @InstrB3_ORE);
+  InitInstruction(@InstrSet[$B4], 0,  4, @InstrB4_ORH);
+  InitInstruction(@InstrSet[$B5], 0,  4, @InstrB5_ORL);
+  InitInstruction(@InstrSet[$B6], 0,  8, @InstrB6_ORRHL);
+  InitInstruction(@InstrSet[$B7], 0,  4, @InstrB7_ORA);
+  InitInstruction(@InstrSet[$B8], 0,  4, @InstrB8_CPB);
+  InitInstruction(@InstrSet[$B9], 0,  4, @InstrB9_CPC);
+  InitInstruction(@InstrSet[$BA], 0,  4, @InstrBA_CPD);
+  InitInstruction(@InstrSet[$BB], 0,  4, @InstrBB_CPE);
+  InitInstruction(@InstrSet[$BC], 0,  4, @InstrBC_CPH);
+  InitInstruction(@InstrSet[$BD], 0,  4, @InstrBD_CPL);
+  InitInstruction(@InstrSet[$BE], 0,  8, @InstrBE_CPRHL);
+  InitInstruction(@InstrSet[$BF], 0,  4, @InstrBF_CPA);
+
+  InitInstruction(@InstrSet[$C0], 0,  8, @InstrC0_RETNZ);
+  InitInstruction(@InstrSet[$C1], 0, 12, @InstrC1_POPBC);
+  InitInstruction(@InstrSet[$C2], 2, 12, @InstrC2_JPNZA16);
+  InitInstruction(@InstrSet[$C3], 2, 16, @InstrC3_JPA16);
+  InitInstruction(@InstrSet[$C4], 2, 12, @InstrC4_CALLNZA16);
+  InitInstruction(@InstrSet[$C5], 0, 16, @InstrC5_PUSHBC);
+  InitInstruction(@InstrSet[$C6], 1,  8, @InstrC6_ADDAD8);
+  InitInstruction(@InstrSet[$C7], 0, 16, @InstrC7_RST00);
+  InitInstruction(@InstrSet[$C8], 0,  8, @InstrC8_RETZ);
+  InitInstruction(@InstrSet[$C9], 0, 16, @InstrC9_RET);
+  InitInstruction(@InstrSet[$CA], 2, 12, @InstrCA_JPZA16);
+  InitInstruction(@InstrSet[$CB], 1,  4, @InstrCB_PREFCB);
+  InitInstruction(@InstrSet[$CC], 2, 12, @InstrCC_CALLZA16);
+  InitInstruction(@InstrSet[$CD], 2, 24, @InstrCD_CALLA16);
+  InitInstruction(@InstrSet[$CE], 1,  8, @InstrCE_ADCAD8);
+  InitInstruction(@InstrSet[$CF], 0, 16, @InstrCF_RST08);
+
+  InitInstruction(@InstrSet[$D0], 0,  8, @InstrD0_RETNC);
+  InitInstruction(@InstrSet[$D1], 0, 12, @InstrD1_POPDE);
+  InitInstruction(@InstrSet[$D2], 2, 12, @InstrD2_JPNCA16);
+  //
+  InitInstruction(@InstrSet[$D4], 2, 12, @InstrD4_CALLNCA16);
+  InitInstruction(@InstrSet[$D5], 0, 16, @InstrD5_PUSHDE);
+  InitInstruction(@InstrSet[$D6], 1,  8, @InstrD6_SUBD8);
+  InitInstruction(@InstrSet[$D7], 0, 16, @InstrD7_RST10);
+  InitInstruction(@InstrSet[$D8], 0,  8, @InstrD8_RETC);
+  InitInstruction(@InstrSet[$D9], 0, 16, @InstrD9_RETI);
+  InitInstruction(@InstrSet[$DA], 2, 12, @InstrDA_JPCA16);
+  //
+  InitInstruction(@InstrSet[$DC], 2, 12, @InstrDC_CALLCA16);
+  //
+  InitInstruction(@InstrSet[$DE], 1,  8, @InstrDE_SBCAD8);
+  InitInstruction(@InstrSet[$DF], 0, 16, @InstrDF_RST18);
+
+  InitInstruction(@InstrSet[$E0], 1, 12, @InstrE0_LDHR8A);
+  InitInstruction(@InstrSet[$E1], 0, 12, @InstrE1_POPHL);
+  InitInstruction(@InstrSet[$E2], 1,  8, @InstrE2_LDRCA);
+  //
+  //
+  InitInstruction(@InstrSet[$E5], 0, 16, @InstrE5_PUSHHL);
+  InitInstruction(@InstrSet[$E6], 1,  8, @InstrE6_ANDD8);
+  InitInstruction(@InstrSet[$E7], 0, 16, @InstrE7_RST20);
+  InitInstruction(@InstrSet[$E8], 1, 16, @InstrE8_ADDSPR8);
+  InitInstruction(@InstrSet[$E9], 0,  4, @InstrE9_JPHL);
+  InitInstruction(@InstrSet[$EA], 2, 16, @InstrEA_LDA16A);
+  //
+  //
+  //
+  InitInstruction(@InstrSet[$EE], 1,  8, @InstrEE_XORD8);
+  InitInstruction(@InstrSet[$EF], 0, 16, @InstrEF_RST28);
+
+  InitInstruction(@InstrSet[$F0], 1, 12, @InstrF0_LDHAA8);
+  InitInstruction(@InstrSet[$F1], 0, 12, @InstrF1_POPAF);
+  InitInstruction(@InstrSet[$F2], 1,  8, @InstrF2_LDARC);
+  InitInstruction(@InstrSet[$F3], 0,  4, @InstrF3_DI);
+  //
+  InitInstruction(@InstrSet[$F5], 0, 16, @InstrF5_PUSHAF);
+  InitInstruction(@InstrSet[$F6], 1,  8, @InstrF6_ORD8);
+  InitInstruction(@InstrSet[$F7], 0, 16, @InstrF7_RST30);
+  InitInstruction(@InstrSet[$F8], 1, 12, @InstrF8_LDHLSPR8);
+  InitInstruction(@InstrSet[$F9], 0,  8, @InstrF9_LDSPHL);
+  InitInstruction(@InstrSet[$FA], 2, 16, @InstrFA_LDAA16);
+  InitInstruction(@InstrSet[$FB], 0,  4, @InstrFB_EI);
+  //
+  //
+  InitInstruction(@InstrSet[$FE], 1,  8, @InstrFE_CPD8);
+  InitInstruction(@InstrSet[$FF], 0, 16, @InstrFF_RST38);
 end;
 
 end.

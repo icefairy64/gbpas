@@ -23,6 +23,7 @@ type
     Carry: Boolean;
     HalfCarry: Boolean;
     Negative: Boolean;
+    Interrupts: Boolean;
   end;
 
 const
@@ -30,7 +31,7 @@ const
   CPU_STATUS_STOP = $02;
 
   CPU_HALFCARRY_MASK     = $10;
-  CPU_HIGHHALFCARRY_MASK = $10;
+  CPU_HIGHHALFCARRY_MASK = $1000;
 
 function CPUInit: PCPU;
 procedure CPUTick(CPU: PCPU);
