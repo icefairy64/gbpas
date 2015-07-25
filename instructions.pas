@@ -1586,8 +1586,10 @@ end;
 // ret nz
 procedure InstrC0_RETNZ(CPU: PCPU);
 begin
-  if not CPU^.Zero then
+  if not CPU^.Zero then begin
     CPU^.IP := Pop(CPU);
+    CPU^.CycleCount += 12;
+  end;
 end;
 
 // pop bc
@@ -1599,8 +1601,10 @@ end;
 // jp nz, a16
 procedure InstrC2_JPNZA16(CPU: PCPU);
 begin
-  if not CPU^.Zero then
+  if not CPU^.Zero then begin
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 4;
+  end;
 end;
 
 // jp a16
@@ -1615,6 +1619,7 @@ begin
   if not CPU^.Zero then begin
     Push(CPU, CPU^.IP);
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 12;
   end;
 end;
 
@@ -1639,8 +1644,10 @@ end;
 // ret z
 procedure InstrC8_RETZ(CPU: PCPU);
 begin
-  if CPU^.Zero then
+  if CPU^.Zero then begin
     CPU^.IP := Pop(CPU);
+    CPU^.CycleCount += 12;
+  end;
 end;
 
 // ret
@@ -1652,8 +1659,10 @@ end;
 // jp z, a16
 procedure InstrCA_JPZA16(CPU: PCPU);
 begin
-  if CPU^.Zero then
+  if CPU^.Zero then begin
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 4;
+  end;
 end;
 
 // Prefix CB
@@ -1698,6 +1707,7 @@ begin
   if CPU^.Zero then begin
     Push(CPU, CPU^.IP);
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 12;
   end;
 end;
 
@@ -1725,8 +1735,10 @@ end;
 // ret nc
 procedure InstrD0_RETNC(CPU: PCPU);
 begin
-  if not CPU^.Carry then
+  if not CPU^.Carry then begin
     CPU^.IP := Pop(CPU);
+    CPU^.CycleCount += 12;
+  end;
 end;
 
 // pop de
@@ -1738,8 +1750,10 @@ end;
 // jp nc, a16
 procedure InstrD2_JPNCA16(CPU: PCPU);
 begin
-  if not CPU^.Carry then
+  if not CPU^.Carry then begin
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 4;
+  end;
 end;
 
 // call nC, a16
@@ -1748,6 +1762,7 @@ begin
   if not CPU^.Carry then begin
     Push(CPU, CPU^.IP);
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 12;
   end;
 end;
 
@@ -1772,8 +1787,10 @@ end;
 // ret c
 procedure InstrD8_RETC(CPU: PCPU);
 begin
-  if CPU^.Carry then
+  if CPU^.Carry then begin
     CPU^.IP := Pop(CPU);
+    CPU^.CycleCount += 12;
+  end;
 end;
 
 // reti
@@ -1786,8 +1803,10 @@ end;
 // jp c, a16
 procedure InstrDA_JPCA16(CPU: PCPU);
 begin
-  if CPU^.Carry then
+  if CPU^.Carry then begin
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 4;
+  end;
 end;
 
 // call c, a16
@@ -1796,6 +1815,7 @@ begin
   if CPU^.Carry then begin
     Push(CPU, CPU^.IP);
     CPU^.IP := GetWordArg(CPU, 1);
+    CPU^.CycleCount += 12;
   end;
 end;
 
