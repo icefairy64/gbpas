@@ -21,6 +21,8 @@ var
   InstrSet: array [$00 .. $FF] of TInstruction;
 
 procedure InstrSetInit;
+procedure Push(CPU: PCPU; Data: Word); inline;
+function Pop(CPU: PCPU): Word; inline;
 
 implementation
 
@@ -358,23 +360,23 @@ end;
 procedure Push(CPU: PCPU; Data: Word); inline;
 begin
   CPU^.SP -= 2;
-  SetWord(CPU^.Memory, CPU^.SP, Data);
+  SetWord(CPU, CPU^.SP, Data);
 end;
 
 function Pop(CPU: PCPU): Word; inline;
 begin
-  Pop := GetWord(CPU^.Memory, CPU^.SP);
+  Pop := GetWord(CPU, CPU^.SP);
   CPU^.SP += 2;
 end;
 
 function GetByteArg(CPU: PCPU; Offset: Byte): Byte; inline;
 begin
-  GetByteArg := GetByte(CPU^.Memory, CPU^.IP + Offset);
+  GetByteArg := GetByte(CPU, CPU^.IP + Offset);
 end;
 
 function GetWordArg(CPU: PCPU; Offset: Byte): Byte; inline;
 begin
-  GetWordArg := GetWord(CPU^.Memory, CPU^.IP + Offset);
+  GetWordArg := GetWord(CPU, CPU^.IP + Offset);
 end;
 
 // Instructions
@@ -388,13 +390,13 @@ end;
 // ld bc, d16
 procedure Instr01_LDBCD16(CPU: PCPU);
 begin
-  CPU^.BC := GetWordArg(CPU^.Memory, 1);
+  CPU^.BC := GetWordArg(CPU, 1);
 end;
 
 // ld (bc), a
 procedure Instr02_LDRBCA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.BC, CPU^.A);
+  SetByte(CPU, CPU^.BC, CPU^.A);
 end;
 
 // inc bc
@@ -445,7 +447,7 @@ end;
 // ld a, (bc)
 procedure Instr0A_LDARBC(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, CPU^.BC);
+  CPU^.A := GetByte(CPU, CPU^.BC);
 end;
 
 // dec bc
@@ -489,13 +491,13 @@ end;
 // ld de, d16
 procedure Instr11_LDDED16(CPU: PCPU);
 begin
-  CPU^.DE := GetWordArg(CPU^.Memory, 1);
+  CPU^.DE := GetWordArg(CPU, 1);
 end;
 
 // ld (de), a
 procedure Instr12_LDRDEA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.DE, CPU^.A);
+  SetByte(CPU, CPU^.DE, CPU^.A);
 end;
 
 // inc d
@@ -543,7 +545,7 @@ end;
 // ld a, (de)
 procedure Instr1A_LDARDE(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, CPU^.DE);
+  CPU^.A := GetByte(CPU, CPU^.DE);
 end;
 
 // dec de
@@ -590,13 +592,13 @@ end;
 // ld hl, d16
 procedure Instr21_LDHLD16(CPU: PCPU);
 begin
-  CPU^.HL := GetWordArg(CPU^.Memory, 1);
+  CPU^.HL := GetWordArg(CPU, 1);
 end;
 
 // ld (hl+), a
 procedure Instr22_LDIRHLA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, CPU^.A);
+  SetByte(CPU, CPU^.HL, CPU^.A);
   CPU^.HL += 1;
 end;
 
@@ -651,7 +653,7 @@ end;
 // ld a, (hl+)
 procedure Instr2A_LDIARHL(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, CPU^.HL);
+  CPU^.A := GetByte(CPU, CPU^.HL);
   CPU^.HL += 1;
 end;
 
@@ -701,13 +703,13 @@ end;
 // ld sp, d16
 procedure Instr31_LDSPD16(CPU: PCPU);
 begin
-  CPU^.SP := GetWordArg(CPU^.Memory, 1);
+  CPU^.SP := GetWordArg(CPU, 1);
 end;
 
 // ld (hl-), a
 procedure Instr32_LDDRHLA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, CPU^.A);
+  SetByte(CPU, CPU^.HL, CPU^.A);
   CPU^.HL -= 1;
 end;
 
@@ -720,19 +722,19 @@ end;
 // inc (hl)
 procedure Instr34_INCRHL(CPU: PCPU);
 begin
-  IncX4(CPU, PByte(CPU^.Memory + CPU^.HL));
+  IncX4(CPU, PByte(CPU + CPU^.HL));
 end;
 
 // dec (hl)
 procedure Instr35_DECRHL(CPU: PCPU);
 begin
-  DecX5(CPU, PByte(CPU^.Memory + CPU^.HL));
+  DecX5(CPU, PByte(CPU + CPU^.HL));
 end;
 
 // ld (hl), d8
 procedure Instr36_LDRHLD8(CPU: PCPU);
 begin
-  PByte(CPU^.Memory + CPU^.HL)^ := GetByteArg(CPU, 1);
+  PByte(CPU + CPU^.HL)^ := GetByteArg(CPU, 1);
 end;
 
 // scf
@@ -761,7 +763,7 @@ end;
 // ld a, (hl-)
 procedure Instr3A_LDDARHL(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, CPU^.HL);
+  CPU^.A := GetByte(CPU, CPU^.HL);
   CPU^.HL -= 1;
 end;
 
@@ -838,7 +840,7 @@ end;
 // ld b, (hl)
 procedure Instr46_LDBRHL(CPU: PCPU);
 begin
-  SetHigh(@CPU^.BC, GetByte(CPU^.Memory, CPU^.HL));
+  SetHigh(@CPU^.BC, GetByte(CPU, CPU^.HL));
 end;
 
 // ld b, a
@@ -886,7 +888,7 @@ end;
 // ld c, (hl)
 procedure Instr4E_LDCRHL(CPU: PCPU);
 begin
-  SetLow(@CPU^.BC, GetByte(CPU^.Memory, CPU^.HL));
+  SetLow(@CPU^.BC, GetByte(CPU, CPU^.HL));
 end;
 
 // ld c, a
@@ -936,7 +938,7 @@ end;
 // ld d, (hl)
 procedure Instr56_LDDRHL(CPU: PCPU);
 begin
-  SetHigh(@CPU^.DE, GetByte(CPU^.Memory, CPU^.HL));
+  SetHigh(@CPU^.DE, GetByte(CPU, CPU^.HL));
 end;
 
 // ld d, a
@@ -984,7 +986,7 @@ end;
 // ld e, (hl)
 procedure Instr5E_LDERHL(CPU: PCPU);
 begin
-  SetLow(@CPU^.DE, GetByte(CPU^.Memory, CPU^.HL));
+  SetLow(@CPU^.DE, GetByte(CPU, CPU^.HL));
 end;
 
 // ld e, a
@@ -1034,7 +1036,7 @@ end;
 // ld h, (hl)
 procedure Instr66_LDHRHL(CPU: PCPU);
 begin
-  SetHigh(@CPU^.HL, GetByte(CPU^.Memory, CPU^.HL));
+  SetHigh(@CPU^.HL, GetByte(CPU, CPU^.HL));
 end;
 
 // ld h, a
@@ -1082,7 +1084,7 @@ end;
 // ld l, (hl)
 procedure Instr6E_LDLRHL(CPU: PCPU);
 begin
-  SetLow(@CPU^.HL, GetByte(CPU^.Memory, CPU^.HL));
+  SetLow(@CPU^.HL, GetByte(CPU, CPU^.HL));
 end;
 
 // ld l, a
@@ -1096,37 +1098,37 @@ end;
 // ld (hl), b
 procedure Instr70_LDRHLB(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.BC));
+  SetByte(CPU, CPU^.HL, GetHigh(CPU^.BC));
 end;
 
 // ld (hl), c
 procedure Instr71_LDRHLC(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.BC));
+  SetByte(CPU, CPU^.HL, GetLow(CPU^.BC));
 end;
 
 // ld (hl), d
 procedure Instr72_LDRHLD(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.DE));
+  SetByte(CPU, CPU^.HL, GetHigh(CPU^.DE));
 end;
 
 // ld (hl), e
 procedure Instr73_LDRHLE(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.DE));
+  SetByte(CPU, CPU^.HL, GetLow(CPU^.DE));
 end;
 
 // ld (hl), h
 procedure Instr74_LDRHLH(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetHigh(CPU^.HL));
+  SetByte(CPU, CPU^.HL, GetHigh(CPU^.HL));
 end;
 
 // ld (hl), l
 procedure Instr75_LDRHLL(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, GetLow(CPU^.HL));
+  SetByte(CPU, CPU^.HL, GetLow(CPU^.HL));
 end;
 
 // halt
@@ -1138,7 +1140,7 @@ end;
 // ld (hl), a
 procedure Instr77_LDRHLA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, CPU^.HL, CPU^.A);
+  SetByte(CPU, CPU^.HL, CPU^.A);
 end;
 
 // ld a, b
@@ -1180,7 +1182,7 @@ end;
 // ld a, (hl)
 procedure Instr7E_LDARHL(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, CPU^.HL);
+  CPU^.A := GetByte(CPU, CPU^.HL);
 end;
 
 // ld a, a
@@ -1230,7 +1232,7 @@ end;
 // add a, (hl)
 procedure Instr86_ADDARHL(CPU: PCPU);
 begin
-  Add8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  Add8CZ(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // add a, a
@@ -1278,7 +1280,7 @@ end;
 // adc a, (hl)
 procedure Instr8E_ADCARHL(CPU: PCPU);
 begin
-  AddC8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  AddC8CZ(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // adc a, a
@@ -1328,7 +1330,7 @@ end;
 // sub (hl)
 procedure Instr96_SUBRHL(CPU: PCPU);
 begin
-  Sub8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  Sub8CZ(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // sub a
@@ -1376,7 +1378,7 @@ end;
 // sbc a, (hl)
 procedure Instr9E_SBCARHL(CPU: PCPU);
 begin
-  SubC8CZ(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  SubC8CZ(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // sbc a, a
@@ -1426,7 +1428,7 @@ end;
 // and (hl)
 procedure InstrA6_ANDRHL(CPU: PCPU);
 begin
-  And8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  And8(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // and a
@@ -1474,7 +1476,7 @@ end;
 // xor (hl)
 procedure InstrAE_XORRHL(CPU: PCPU);
 begin
-  Xor8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  Xor8(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // xor a
@@ -1524,7 +1526,7 @@ end;
 // or (hl)
 procedure InstrB6_ORRHL(CPU: PCPU);
 begin
-  Or8(@CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  Or8(@CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // or a
@@ -1572,7 +1574,7 @@ end;
 // cp (hl)
 procedure InstrBE_CPRHL(CPU: PCPU);
 begin
-  Cmp8(CPU^.A, GetByte(CPU^.Memory, CPU^.HL), CPU);
+  Cmp8(CPU^.A, GetByte(CPU, CPU^.HL), CPU);
 end;
 
 // cp a
@@ -1683,7 +1685,7 @@ begin
     3: target := PByte(@CPU^.DE);
     4: target := PByte(@CPU^.HL) + 1;
     5: target := PByte(@CPU^.HL);
-    6: target := PByte(CPU^.Memory) + CPU^.HL;
+    6: target := PByte(CPU) + CPU^.HL;
     7: target := @CPU^.A;
   end;
   case arg shr 3 of
@@ -1836,7 +1838,7 @@ end;
 // ldh (a8), a
 procedure InstrE0_LDHR8A(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, $FF00 + GetByteArg(CPU, 1), CPU^.A);
+  SetByte(CPU, $FF00 + GetByteArg(CPU, 1), CPU^.A);
 end;
 
 // pop hl
@@ -1848,7 +1850,7 @@ end;
 // ldh (c), a
 procedure InstrE2_LDRCA(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, $FF00 + GetLow(CPU^.BC), CPU^.A);
+  SetByte(CPU, $FF00 + GetLow(CPU^.BC), CPU^.A);
 end;
 
 // push hl
@@ -1894,7 +1896,7 @@ end;
 // ld (a16), a
 procedure InstrEA_LDA16A(CPU: PCPU);
 begin
-  SetByte(CPU^.Memory, GetWordArg(CPU, 1), CPU^.A);
+  SetByte(CPU, GetWordArg(CPU, 1), CPU^.A);
 end;
 
 // xor d8
@@ -1914,7 +1916,7 @@ end;
 // ldh a, (a8)
 procedure InstrF0_LDHAA8(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, $FF00 + GetByteArg(CPU, 1));
+  CPU^.A := GetByte(CPU, $FF00 + GetByteArg(CPU, 1));
 end;
 
 // pop af
@@ -1926,7 +1928,7 @@ end;
 // ld a, (c)
 procedure InstrF2_LDARC(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, $FF00 + GetLow(CPU^.BC));
+  CPU^.A := GetByte(CPU, $FF00 + GetLow(CPU^.BC));
 end;
 
 // di
@@ -1978,7 +1980,7 @@ end;
 // ld a, (a16)
 procedure InstrFA_LDAA16(CPU: PCPU);
 begin
-  CPU^.A := GetByte(CPU^.Memory, GetWordArg(CPU, 1));
+  CPU^.A := GetByte(CPU, GetWordArg(CPU, 1));
 end;
 
 // ei

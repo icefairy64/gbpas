@@ -20,7 +20,7 @@
       <UseVersionInfo Value="True"/>
       <AutoIncrementBuild Value="True"/>
       <RevisionNr Value="1"/>
-      <BuildNr Value="75"/>
+      <BuildNr Value="97"/>
       <StringTable ProductVersion=""/>
     </VersionInfo>
     <BuildModes Count="2">
@@ -35,6 +35,12 @@
             <IncludeFiles Value="$(ProjOutDir)"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="FPC"/>
+              <UseAnsiStrings Value="False"/>
+            </SyntaxOptions>
+          </Parsing>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
             <RelocatableUnit Value="True"/>
@@ -68,7 +74,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="4">
+    <Units Count="5">
       <Unit0>
         <Filename Value="gbpas.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -89,6 +95,11 @@
         <IsPartOfProject Value="True"/>
         <UnitName Value="instructions"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="lcd.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="lcd"/>
+      </Unit4>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

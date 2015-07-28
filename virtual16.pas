@@ -5,8 +5,11 @@ unit virtual16;
 
 interface
 
+uses cpu;
+
 const
   VIRTUAL16_BLOCKSIZE = $10000;
+  VIRTUAL16_CARTTYPE  = $0147;
 
 // Block routines
 function AllocVirtual16Block(Clear: Boolean): Pointer;
@@ -14,10 +17,10 @@ procedure DumpVirtual16Block(Block: Pointer; FileName: ShortString);
 procedure LoadVirtual16Block(Block: Pointer; FileName: ShortString);
 
 // Data routines
-function GetByte(Mem: Pointer; Offset: Word): Byte;
-procedure SetByte(Mem: Pointer; Offset: Word; Data: Byte);
-function GetWord(Mem: Pointer; Offset: Word): Word;
-procedure SetWord(Mem: Pointer; Offset: Word; Data: Word);
+function GetByte(CPU: PCPU; Offset: Word): Byte;
+procedure SetByte(CPU: PCPU; Offset: Word; Data: Byte);
+function GetWord(CPU: PCPU; Offset: Word): Word;
+procedure SetWord(CPU: PCPU; Offset: Word; Data: Word);
 
 implementation
 
@@ -75,28 +78,41 @@ begin
     Offset -= $2000;
 end;
 
-function GetByte(Mem: Pointer; Offset: Word): Byte;
+function CatchMapperSignal(CPU: PCPU; Offset: Word; Data: Byte): Boolean;
 begin
-  ValidateOffset(Offset);
-  GetByte := PByte(Mem + Offset)^;
+  if Offset < $8000 then begin
+    CatchMapperSignal := True;
+
+  end else
+    CatchMapperSignal := False;
 end;
 
-procedure SetByte(Mem: Pointer; Offset: Word; Data: Byte);
+function GetByte(CPU: PCPU; Offset: Word): Byte;
 begin
   ValidateOffset(Offset);
-  PByte(Mem + Offset)^ := Data;
+  GetByte := PByte(CPU^.Memory + Offset)^;
 end;
 
-function GetWord(Mem: Pointer; Offset: Word): Word;
+procedure SetByte(CPU: PCPU; Offset: Word; Data: Byte);
 begin
   ValidateOffset(Offset);
-  GetWord := PWord(Mem + Offset)^;
+  if CatchMapperSignal(CPU, Offset, Data) then
+    Exit;
+  PByte(CPU^.Memory + Offset)^ := Data;
 end;
 
-procedure SetWord(Mem: Pointer; Offset: Word; Data: Word);
+function GetWord(CPU: PCPU; Offset: Word): Word;
 begin
   ValidateOffset(Offset);
-  PWord(Mem + Offset)^ := Data;
+  GetWord := PWord(CPU^.Memory + Offset)^;
+end;
+
+procedure SetWord(CPU: PCPU; Offset: Word; Data: Word);
+begin
+  ValidateOffset(Offset);
+  if CatchMapperSignal(CPU, Offset, Data) then
+    Exit;
+  PWord(CPU^.Memory + Offset)^ := Data;
 end;
 
 end.
